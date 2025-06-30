@@ -1,0 +1,59 @@
+
+2025-06-30 14:11:56.338 Uncaught exception GET /_stcore/stream (127.0.0.1)
+HTTPServerRequest(protocol='http', host='kubeflow.namu.samsungdisplay.net:31443', method='GET', uri='/_stcore/stream', version='HTTP/1.1', remote_ip='127.0.0.1')
+Traceback (most recent call last):
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/web/bootstrap.py", line 348, in run
+    if asyncio.get_running_loop().is_running():
+RuntimeError: no running event loop
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/conda/lib/python3.10/site-packages/tornado/websocket.py", line 938, in _accept_connection
+    open_result = handler.open(*handler.open_args, **handler.open_kwargs)
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/web/server/browser_websocket_handler.py", line 183, in open
+    self._session_id = self._runtime.connect_session(
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/runtime/runtime.py", line 386, in connect_session
+    session_id = self._session_mgr.connect_session(
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/runtime/websocket_session_manager.py", line 101, in connect_session
+    session = AppSession(
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/runtime/app_session.py", line 158, in __init__
+    self.register_file_watchers()
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/runtime/app_session.py", line 195, in register_file_watchers
+    self._local_sources_watcher = LocalSourcesWatcher(self._pages_manager)
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/watcher/local_sources_watcher.py", line 66, in __init__
+    self.update_watched_pages()
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/watcher/local_sources_watcher.py", line 78, in update_watched_pages
+    self._register_watcher(
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/watcher/local_sources_watcher.py", line 168, in _register_watcher
+    watcher=PathWatcher(
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/watcher/event_based_path_watcher.py", line 107, in __init__
+    path_watcher.watch_path(
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/watcher/event_based_path_watcher.py", line 185, in watch_path
+    folder_handler.watch = self._observer.schedule(
+  File "/home/namu/.local/lib/python3.10/site-packages/watchdog/observers/api.py", line 312, in schedule
+    emitter.start()
+  File "/home/namu/.local/lib/python3.10/site-packages/watchdog/utils/__init__.py", line 75, in start
+    self.on_thread_start()
+  File "/home/namu/.local/lib/python3.10/site-packages/watchdog/observers/inotify.py", line 119, in on_thread_start
+    self._inotify = InotifyBuffer(path, recursive=self.watch.is_recursive, event_mask=event_mask)
+  File "/home/namu/.local/lib/python3.10/site-packages/watchdog/observers/inotify_buffer.py", line 30, in __init__
+    self._inotify = Inotify(path, recursive=recursive, event_mask=event_mask)
+  File "/home/namu/.local/lib/python3.10/site-packages/watchdog/observers/inotify_c.py", line 185, in __init__
+    self._add_dir_watch(path, event_mask, recursive=recursive)
+  File "/home/namu/.local/lib/python3.10/site-packages/watchdog/observers/inotify_c.py", line 404, in _add_dir_watch
+    self._add_watch(path, mask)
+  File "/home/namu/.local/lib/python3.10/site-packages/watchdog/observers/inotify_c.py", line 424, in _add_watch
+    Inotify._raise_error()
+  File "/home/namu/.local/lib/python3.10/site-packages/watchdog/observers/inotify_c.py", line 435, in _raise_error
+    raise OSError(errno.ENOSPC, "inotify watch limit reached")
+OSError: [Errno 28] inotify watch limit reached
+Exception ignored in: <function AppSession.__del__ at 0x7f1f5bee30a0>
+Traceback (most recent call last):
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/runtime/app_session.py", line 178, in __del__
+    self.shutdown()
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/runtime/app_session.py", line 255, in shutdown
+    self.request_script_stop()
+  File "/home/namu/.local/lib/python3.10/site-packages/streamlit/runtime/app_session.py", line 429, in request_script_stop
+    if self._scriptrunner is not None:
+AttributeError: 'AppSession' object has no attribute '_scriptrunner'
