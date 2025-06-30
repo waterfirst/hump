@@ -15,6 +15,11 @@ import io
 import zipfile
 from datetime import datetime
 import re
+import os
+
+# Streamlit 환경 변수 설정 (파일 워처 비활성화)
+os.environ['STREAMLIT_SERVER_FILE_WATCHER_TYPE'] = 'none'
+os.environ['STREAMLIT_SERVER_RUN_ON_SAVE'] = 'false'
 
 # 페이지 설정
 st.set_page_config(
