@@ -95,77 +95,157 @@ def analyze_data(df_combined):
         df['x'] = df['no'] * 10.96
         df['side'] = df['position'].apply(position_to_side)
         
+        st.info("📊 데이터 전처리 완료")
+        st.write(f"전체 데이터 shape: {df.shape}")
+        st.write(f"컬럼명: {list(df.columns)}")
+        
         # position이 "4"가 아닌 데이터 분석 (result1)
         df_not_4 = df[df['position'] != "4"].copy()
+        st.write(f"Position != 4 데이터: {len(df_not_4)}개")
         
         if len(df_not_4) > 0:
-            # pivot_wider 구현
-            df_pivot = df_not_4.pivot_table(
-                index='no',
-                columns=['Glass ID', 'cell', 'position'],
-                values='Avg Offset',
-                aggfunc='first'
-            )
-            
-            # 기준점(456번째 행) 차감
-            if len(df_pivot) > 456:
-                df_pivot = df_pivot.sub(df_pivot.iloc[455], axis=1)
-            
-            # pivot_longer 구현
-            df_long = df_pivot.reset_index().melt(
-                id_vars=['no'],
-                var_name=['glass', 'cell', 'position'],
-                value_name='y'
-            )
-            
-            df_long['side'] = df_long['position'].apply(position_to_side)
-            
-            # hump 분석
-            result1 = df_long.groupby(['glass', 'cell', 'side']).agg({
-                'y': ['max', 'idxmax']
-            }).round(1)
-            
-            result1.columns = ['hump_dy', 'hump_dx_idx']
-            result1['hump_dx'] = (result1['hump_dx_idx'] * 10.96).round(0)
-            result1 = result1.drop('hump_dx_idx', axis=1).reset_index()
-            result1['split'] = result1['cell'].apply(assign_split_category)
+            try:
+                # pivot_wider 구현 (수정된 버전)
+                df_pivot = df_not_4.pivot_table(
+                    index='no',
+                    columns=['Glass ID', 'cell', 'position'],
+                    values='Avg Offset',
+                    aggfunc='first'
+                )
+                
+                st.write(f"Pivot table shape: {df_pivot.shape}")
+                
+                # 컬럼명이 MultiIndex인 경우 처리
+                if isinstance(df_pivot.columns, pd.MultiIndex):
+                    # MultiIndex 컬럼을 문자열로 변환
+                    df_pivot.columns = ['_'.join(map(str, col)).strip() for col in df_pivot.columns]
+                
+                # 기준점(456번째 행) 차감 - 인덱스 확인 후 적용
+                if len(df_pivot) > 456 and 455 in df_pivot.index:
+                    reference_row = df_pivot.loc[455]
+                    df_pivot = df_pivot.sub(reference_row, axis=1)
+                    st.info("✅ 기준점(456번째 행) 차감 완료")
+                
+                # reset_index로 'no'를 컬럼으로 만들기
+                df_pivot_reset = df_pivot.reset_index()
+                
+                # melt 수행 - 수정된 버전
+                value_cols = [col for col in df_pivot_reset.columns if col != 'no']
+                
+                df_long = pd.melt(
+                    df_pivot_reset,
+                    id_vars=['no'],
+                    value_vars=value_cols,
+                    var_name='combined_key',
+                    value_name='y'
+                )
+                
+                # combined_key를 분리 (glass_cell_position 형태)
+                split_cols = df_long['combined_key'].str.split('_', expand=True)
+                if len(split_cols.columns) >= 3:
+                    df_long['glass'] = split_cols[0]
+                    df_long['cell'] = split_cols[1] 
+                    df_long['position'] = split_cols[2]
+                    
+                    # 추가 컬럼이 있는 경우 합치기
+                    if len(split_cols.columns) > 3:
+                        for i in range(3, len(split_cols.columns)):
+                            df_long['position'] = df_long['position'] + '_' + split_cols[i].fillna('')
+                
+                df_long['side'] = df_long['position'].apply(position_to_side)
+                
+                # NaN 값 제거
+                df_long = df_long.dropna(subset=['y'])
+                
+                st.write(f"Long format 데이터: {len(df_long)}개")
+                
+                # hump 분석
+                if len(df_long) > 0:
+                    result1_grouped = df_long.groupby(['glass', 'cell', 'side'])
+                    
+                    # 각 그룹별로 최대값과 최대값의 인덱스 계산
+                    hump_data = []
+                    for name, group in result1_grouped:
+                        if len(group) > 0:
+                            max_y = group['y'].max()
+                            max_idx = group['y'].idxmax()
+                            max_no = group.loc[max_idx, 'no'] if max_idx in group.index else 0
+                            
+                            hump_data.append({
+                                'glass': name[0],
+                                'cell': name[1], 
+                                'side': name[2],
+                                'hump_dy': round(max_y, 1),
+                                'hump_dx': round(max_no * 10.96, 0)
+                            })
+                    
+                    result1 = pd.DataFrame(hump_data)
+                    result1['split'] = result1['cell'].apply(assign_split_category)
+                else:
+                    result1 = pd.DataFrame()
+                    
+            except Exception as e:
+                st.error(f"Position != 4 데이터 분석 중 오류: {str(e)}")
+                result1 = pd.DataFrame()
         else:
             result1 = pd.DataFrame()
         
         # position이 "4"인 데이터 분석 (result2)
         df_4 = df[df['position'] == "4"].copy()
+        st.write(f"Position == 4 데이터: {len(df_4)}개")
         
         if len(df_4) > 0:
-            df_4 = df_4.rename(columns={'Glass ID': 'glass', 'Avg Offset': 'y'})
-            
-            result2 = df_4.groupby(['glass', 'cell', 'side']).agg({
-                'y': lambda x: round(x.max() - x.min(), 1),
-                'x': lambda x: round(10.96 * x.idxmax())
-            })
-            
-            result2.columns = ['hump_dy', 'hump_dx']
-            result2 = result2.reset_index()
-            result2['split'] = result2['cell'].apply(assign_split_category)
+            try:
+                df_4 = df_4.rename(columns={'Glass ID': 'glass', 'Avg Offset': 'y'})
+                
+                result2_grouped = df_4.groupby(['glass', 'cell', 'side'])
+                
+                hump_data_4 = []
+                for name, group in result2_grouped:
+                    if len(group) > 0:
+                        y_range = group['y'].max() - group['y'].min()
+                        max_idx = group['y'].idxmax()
+                        max_no = group.loc[max_idx, 'no'] if max_idx in group.index else 0
+                        
+                        hump_data_4.append({
+                            'glass': name[0],
+                            'cell': name[1],
+                            'side': name[2], 
+                            'hump_dy': round(y_range, 1),
+                            'hump_dx': round(max_no * 10.96, 0)
+                        })
+                
+                result2 = pd.DataFrame(hump_data_4)
+                result2['split'] = result2['cell'].apply(assign_split_category)
+                
+            except Exception as e:
+                st.error(f"Position == 4 데이터 분석 중 오류: {str(e)}")
+                result2 = pd.DataFrame()
         else:
             result2 = pd.DataFrame()
         
         # 결과 합치기
-        if len(result1) > 0 and len(result2) > 0:
-            result = pd.concat([result1, result2], ignore_index=True)
-        elif len(result1) > 0:
-            result = result1
-        elif len(result2) > 0:
-            result = result2
+        result_list = []
+        if len(result1) > 0:
+            result_list.append(result1)
+        if len(result2) > 0:
+            result_list.append(result2)
+            
+        if result_list:
+            result = pd.concat(result_list, ignore_index=True)
+            result = result.sort_values(['glass', 'cell', 'side']).reset_index(drop=True)
         else:
             result = pd.DataFrame()
         
-        if len(result) > 0:
-            result = result.sort_values(['glass', 'cell', 'side']).reset_index(drop=True)
+        st.success(f"✅ 분석 완료! 결과 데이터: {len(result)}개 행")
         
         return result, df
         
     except Exception as e:
-        st.error(f"데이터 분석 중 오류가 발생했습니다: {str(e)}")
+        st.error(f"데이터 분석 중 전체 오류가 발생했습니다: {str(e)}")
+        st.error(f"오류 상세: {type(e).__name__}")
+        import traceback
+        st.code(traceback.format_exc())
         return pd.DataFrame(), pd.DataFrame()
 
 def create_plots(df, result_df):
